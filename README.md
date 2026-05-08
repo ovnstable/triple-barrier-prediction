@@ -98,7 +98,7 @@ data/
 | **`target/`** | LP triple-barrier labels / targets. | `blockNumber` on same-day file; respect `datetime_ms` if target rows carry timestamps. |
 | **`hedge_target/`** | Hedge-focused target set. | Backward join on datetime. |
 | **`binance/bbo/spot/`** | Spot BBO. | Same-day file; last snapshot with time ≤ `datetime_ms` per block. |
-| **`binance/orderbook/spot/`** | Spot L2 books. | Slower compared to BBO, contains deeper levels. |
+| **`binance/orderbook/spot/`** | Spot L2 books. | Same as BBO. |
 | **`binance/trades/perp/`** | Binance perp trades. | Trades with time ≤ `datetime_ms`; aggregate per block if needed. |
 | **`hyperliquid/orderbook/perp/`** | HL perp book. | Same as Binance order book. |
 | **`hyperliquid/trades/perp/`** | HL perp trades. | Same as Binance trades. |
