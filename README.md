@@ -1,20 +1,17 @@
-
-
-
 # Triple-barrier prediction — task overview
 
-## Task
+## Task 1. LP triple barrier
 
 Predict the **`target_barrier`** column from the `target/` dataset and evaluate yourself on the **F1 score**.
 
-- `target_barrier` is the outcome of taking a specific `action` at a specific Arbitrum `blockNumber`.
+- `target_barrier` is the outcome of taking a specific Uniswap liquidity provision `action` at a specific Arbitrum `blockNumber`.
   - Source: `data/target/{date}.parquet`
   - Primary key: (`blockNumber`, `action`)
   - Label: `target_barrier`
 
 You may use any combination of the data shipped here (`steps/`, `binance/`, `hyperliquid/`, `uniswap/`) **or external sources of your own**, as long as you respect causality (no information after the step’s `datetime_ms`).
 
-## Goal
+### Goal
 
 For every (`blockNumber`, `action`) row, produce a prediction of `target_barrier` such that:
 
@@ -22,10 +19,40 @@ For every (`blockNumber`, `action`) row, produce a prediction of `target_barrier
 2. **Performance is stable over time** — F1 should not degrade meaningfully across days / weeks of the validation window. Models that overfit one regime are penalized in practice; prefer features and training schemes that generalize.
 3. **Inference on steps** - when ready, inference triple_barrier on all **blockNumber** provided in steps
 
-## Evaluation
+### Evaluation
 
 - Metric: **Macro F1 score** on `target_barrier`. Additionally, validate using the confusion matrix to avoid any abnormal predictions due to class imbalance.
 - Always report **per-day F1** in addition to overall, to make the time-stability requirement visible.
+
+## Task 2. Hedge triple barrier
+
+Predict the following target columns from the `hedge_target/` dataset and evaluate yourself on the **F1 score**:
+
+- `triple_barrier_sell_500ms`
+- `triple_barrier_buy_500ms`
+- `triple_barrier_sell_2000ms`
+- `triple_barrier_buy_2000ms`
+
+- Each target is the outcome of taking a specific hedge-side action at a specific timestamp.
+  - Source: `data/hedge_target/{date}.parquet`
+  - Join key: timestamp-aligned rows (as provided in the dataset)
+  - Labels: the four `triple_barrier_*` columns above
+
+You may use any combination of the data shipped here (`steps/`, `binance/`, `hyperliquid/`, `uniswap/`) **or external sources of your own**, as long as you respect causality (no information after the step’s `datetime_ms`).
+
+### Goal
+
+For every row, produce predictions for the four `triple_barrier_*` targets such that:
+
+1. **F1 score is as high as possible** on held-out validation data.
+2. **Performance is stable over time** — F1 should not degrade meaningfully across days / weeks of the validation window. Models that overfit one regime are penalized in practice; prefer features and training schemes that generalize.
+3. **Inference on BBO timestamps** - when ready, run inference for all BBO timestamps in the evaluation horizon.
+
+### Evaluation
+
+- Metric: **Macro F1 score** on each target (`triple_barrier_sell_500ms`, `triple_barrier_buy_500ms`, `triple_barrier_sell_2000ms`, `triple_barrier_buy_2000ms`). Additionally, validate using confusion matrices to avoid abnormal predictions due to class imbalance.
+- Always report **per-day F1** in addition to overall, to make the time-stability requirement visible.
+
 
 ---
 
@@ -40,11 +67,7 @@ git lfs install
 
 git lfs pull
 
-# Concatenate parts in lexicographic order (aa, ab, ac, …)
-cat data.zip.part-* > data.zip
-
-# Unpack
-unzip -q data.zip -d /path/to/destination
+unzip data.zip
 ```
 
 ---
@@ -56,7 +79,8 @@ Root: `data/` (e.g. `/data/triple-barrier-prediction/data`).
 ```
 data/
 ├── steps/                 # one parquet per calendar day
-├── target/                # labels / targets per day
+├── target/                # primary labels / targets per day
+├── hedge_target/          # alternative hedge-focused targets per day
 ├── binance/
 │   ├── bbo/spot/          # best bid/offer snapshots per day
 │   ├── orderbook/spot/    # L2 order book snapshots per day
@@ -71,7 +95,8 @@ data/
 | Path | What it is | Join hint |
 |------|------------|------------|
 | **`steps/`** | Per-block backbone; includes **`datetime_ms`**. | Left side of joins; `blockNumber` + causal bound `datetime_ms`. |
-| **`target/`** | Triple-barrier labels / targets. | `blockNumber` on same-day file; respect `datetime_ms` if target rows carry timestamps. |
+| **`target/`** | LP triple-barrier labels / targets. | `blockNumber` on same-day file; respect `datetime_ms` if target rows carry timestamps. |
+| **`hedge_target/`** | Hedge-focused target set. | Backward join on datetime. |
 | **`binance/bbo/spot/`** | Spot BBO. | Same-day file; last snapshot with time ≤ `datetime_ms` per block. |
 | **`binance/orderbook/spot/`** | Spot L2 books. | Slower compared to BBO, contains deeper levels. |
 | **`binance/trades/perp/`** | Binance perp trades. | Trades with time ≤ `datetime_ms`; aggregate per block if needed. |
@@ -82,7 +107,7 @@ data/
 
 ---
 
-## Joining and avoiding look-ahead bias
+## Joining blockchain data to avoid look-ahead bias
 - **Primary keys**
   - `steps/`: `blockNumber` only — used for **inference**. Carries `datetime_ms` (when the row was known).
   - `target/`: (`blockNumber`, `action`) — used for **training / validation**.
