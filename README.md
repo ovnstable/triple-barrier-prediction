@@ -73,7 +73,7 @@ data/
 | **`steps/`** | Per-block backbone; includes **`datetime_ms`**. | Left side of joins; `blockNumber` + causal bound `datetime_ms`. |
 | **`target/`** | Triple-barrier labels / targets. | `blockNumber` on same-day file; respect `datetime_ms` if target rows carry timestamps. |
 | **`binance/bbo/spot/`** | Spot BBO. | Same-day file; last snapshot with time ≤ `datetime_ms` per block. |
-| **`binance/orderbook/spot/`** | Spot L2 books. | Same as BBO. |
+| **`binance/orderbook/spot/`** | Spot L2 books. | Slower compared to BBO, contains deeper levels. |
 | **`binance/trades/perp/`** | Binance perp trades. | Trades with time ≤ `datetime_ms`; aggregate per block if needed. |
 | **`hyperliquid/orderbook/perp/`** | HL perp book. | Same as Binance order book. |
 | **`hyperliquid/trades/perp/`** | HL perp trades. | Same as Binance trades. |
